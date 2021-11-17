@@ -1,10 +1,10 @@
 const INITIAL_STATE = {};
 
-export default function library(state = INITIAL_STATE, { type, payload }) {
+export default function formItemData(state = INITIAL_STATE, { type, payload }) {
   switch (type) {
-    case "SAVE":
+    case "SET_DATA":
       return {
-        ...state,
+        // ...state,
         ...payload
       };
     default:

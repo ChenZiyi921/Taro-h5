@@ -11,6 +11,7 @@ import {
   AtButton,
   AtMessage
 } from "taro-ui";
+import * as moment from "moment";
 import IconFont from "@/components/iconfont";
 import {
   getDictionaryChinaRegion,
@@ -53,43 +54,27 @@ export default class PatientCreate extends Component {
     selectRelation: {},
     caseMetadata: [],
     displayData: [],
-    localDisplayData: [
-      "patientId",
-      "visitId",
-      "patientName",
-      "sex",
-      "birthDate",
-      "telephone",
-      "professionName",
-      "region",
-      "address",
-      "nationName",
-      "marriageStatus",
-      "linkmanName",
-      "linkmanTelephone",
-      "linkmanRegion",
-      "linkmanAddress",
-      "linkmanRelationName"
-    ],
     form: {
       caseMetadataVO: {
-        patientId: "",
-        visitId: "",
-        patientName: "",
-        sex: "",
-        birthDate: "",
-        telephone: "",
-        linkmanTelephone: "",
-        professionCode: "",
         address: "",
-        nationCode: "",
-        marriageStatus: "",
-        linkmanName: "",
-        linkmanRelationCode: "",
+        birthDate: "",
+        creatorId: "",
+        idCardNumber: "",
         linkmanAddress: "",
+        linkmanName: "",
+        linkmanRegion: "",
+        linkmanRelationCode: "",
+        linkmanTelephone: "",
+        marriageStatus: "",
+        nationCode: "",
+        patientId: "",
+        patientName: "",
+        professionCode: "",
         region: "",
+        sex: "",
         source: 2, // 0表示检索入组，1表示导入，2表示手动入组
-        creatorId: ""
+        telephone: "",
+        visitId: ""
       },
       armId: undefined,
       scheduled: true,
@@ -186,6 +171,11 @@ export default class PatientCreate extends Component {
         caseMetadataVO: data
       }
     }));
+    if (!!e?.target?.value || !!e) {
+      this.setRequireItemState(key);
+    } else {
+      this.setRequireItemState(key, true);
+    }
   };
 
   joinedIdChange = val => {
@@ -195,6 +185,11 @@ export default class PatientCreate extends Component {
         joinedId: val
       }
     });
+    if (!!val) {
+      this.setRequireItemState("joinedId");
+    } else {
+      this.setRequireItemState("joinedId", true);
+    }
   };
 
   sexChange = e => {
@@ -203,6 +198,11 @@ export default class PatientCreate extends Component {
         draft.form.caseMetadataVO.sex = this.state.sexList[e.target.value];
       })
     );
+    if (!!e) {
+      this.setRequireItemState("sex");
+    } else {
+      this.setRequireItemState("sex", true);
+    }
   };
 
   professionChange = e => {
@@ -216,6 +216,7 @@ export default class PatientCreate extends Component {
           professionList[e.target.value].code;
       })
     );
+    this.setRequireItemState("professionName");
   };
 
   marriageStatusChange = e => {
@@ -226,6 +227,11 @@ export default class PatientCreate extends Component {
         ];
       })
     );
+    if (!!e) {
+      this.setRequireItemState("marriageStatus");
+    } else {
+      this.setRequireItemState("marriageStatus", true);
+    }
   };
 
   showPicker = key => {
@@ -252,6 +258,7 @@ export default class PatientCreate extends Component {
       visible: false,
       visible2: false
     });
+    this.setRequireItemState(key);
   };
 
   armsListChange = e => {
@@ -273,11 +280,19 @@ export default class PatientCreate extends Component {
         draft.form.caseMetadataVO.nationCode = nationList[e.target.value].code;
       })
     );
+    this.setRequireItemState("nationName");
   };
 
   relationListChange = e => {
     const { relationList } = this.state;
     this.setState({ selectRelation: relationList[e.target.value] });
+    this.setState(
+      produce(draft => {
+        draft.form.caseMetadataVO.linkmanRelationCode =
+          relationList[e.target.value].code;
+      })
+    );
+    this.setRequireItemState("linkmanRelationName");
   };
 
   isPlaceholder = status => {
@@ -288,81 +303,88 @@ export default class PatientCreate extends Component {
     }
   };
 
+  setRequireItemState = (key, status) => {
+    this.setState(state => ({
+      requiredObject: {
+        ...state.requiredObject,
+        [key]: status || false
+      }
+    }));
+  };
+
   requiredValidate = () => {
-    return new Promise((resolve, reject) => {
-      const {
-        requiredObject,
-        form: { caseMetadataVO },
-        caseMetadata
-      } = this.state;
+    const { requiredObject, caseMetadata } = this.state;
+    let flag = false;
+    if (Object.values(requiredObject).includes(true)) {
       for (const key in requiredObject) {
-        if (!!caseMetadataVO[key]) {
-          this.setState(
-            state => ({
-              requiredObject: {
-                ...state.requiredObject,
-                [key]: false
-              }
-            }),
-            () => {
-              const { requiredObject } = this.state;
-              if (!Object.values(requiredObject).includes(true)) {
-                resolve(true);
-              }
-            }
-          );
-        } else {
+        if (requiredObject[key]) {
           Taro.atMessage({
             message: `${
               caseMetadata.filter(item => item.code === key)[0].name
             }不能为空`,
             type: "error"
           });
-          return resolve(false);
+          break;
         }
       }
-    });
+    } else {
+      flag = true;
+    }
+    return flag;
   };
 
   onSubmit = event => {
-    this.requiredValidate().then(res => {
-      if (res) {
-        const { library, userInfo } = this.props;
-        const { projectId } = library;
-        const { userId } = userInfo;
-        this.setState(
-          state => ({
-            form: {
-              ...state.form,
-              caseMetadataVO: {
-                ...state.form.caseMetadataVO,
-                creatorId: userId
-              },
-              joinedUserId: userId,
-              projectId
-            }
-          }),
-          () => {
-            const { form } = this.state;
-            addProjectCase(form)
-              .then(({ data: { code, message } }) => {
-                Taro.atMessage({
-                  message,
-                  type: code === "OK" ? "success" : "error"
-                });
-                if (code === "OK") {
-                  setTimeout(() => {
-                    Taro.navigateTo({
-                      url: "/pages/patientCase/index"
-                    });
-                  }, 2000);
-                }
-              })
-              .catch(err => {});
+    const { library } = this.props;
+    const { caseGrouped, caseNumberAutomated } = library;
+    const { armId, joinedId } = this.state.form;
+    if (caseGrouped && armId === undefined) {
+      Taro.atMessage({
+        message: `请选择分组`,
+        type: "error"
+      });
+      return;
+    }
+    if (!caseNumberAutomated && joinedId === "") {
+      Taro.atMessage({
+        message: `入组编号不能为空`,
+        type: "error"
+      });
+      return;
+    }
+    if (this.requiredValidate()) {
+      const { library, userInfo } = this.props;
+      const { projectId } = library;
+      const { userId } = userInfo;
+      this.setState(
+        state => ({
+          form: {
+            ...state.form,
+            caseMetadataVO: {
+              ...state.form.caseMetadataVO,
+              creatorId: userId
+            },
+            joinedUserId: userId,
+            projectId
           }
-        );
-      }
-    });
+        }),
+        () => {
+          const { form } = this.state;
+          addProjectCase(form)
+            .then(({ data: { code, message } }) => {
+              Taro.atMessage({
+                message,
+                type: code === "OK" ? "success" : "error"
+              });
+              if (code === "OK") {
+                setTimeout(() => {
+                  this.jumpPatientCase();
+                }, 2000);
+              }
+            })
+            .catch(err => {});
+        }
+      );
+    }
   };
 
   onReset = event => {
@@ -385,21 +407,22 @@ export default class PatientCreate extends Component {
           linkmanTelephone: "",
           professionCode: "",
           address: "",
-          nationCode: "",
+          nationName: "",
           marriageStatus: "",
           linkmanName: "",
-          linkmanRelationCode: "",
+          linkmanRegion: "",
           linkmanAddress: "",
           region: "",
           source: 2, // 0表示检索入组，1表示导入，2表示手动入组
-          creatorId: ""
+          creatorId: "",
+          idCardNumber: ""
         }
       }
     });
   };
 
   jumpPatientCase = () => {
-    Taro.navigateTo({
+    Taro.redirectTo({
       url: "/pages/patientCase/index"
     });
   };
@@ -438,12 +461,13 @@ export default class PatientCreate extends Component {
           linkmanTelephone,
           professionCode,
           address,
-          nationCode,
+          nationName,
           marriageStatus,
           linkmanName,
-          linkmanRelationCode,
+          linkmanRegion,
           linkmanAddress,
-          region
+          region,
+          idCardNumber
         },
         joinedId
       }
@@ -454,11 +478,7 @@ export default class PatientCreate extends Component {
         <AtForm onSubmit={this.onSubmit} onReset={this.onReset}>
           {caseGrouped ? (
             <View className="at-input flex-wrap">
-              <Text
-                className={`at-input__title ${
-                  true ? "at-input__title--required" : ""
-                }`}
-              >
+              <Text className="at-input__title at-input__title--required">
                 分组
               </Text>
               <View className="gender">
@@ -487,7 +507,7 @@ export default class PatientCreate extends Component {
               onChange={this.joinedIdChange}
             />
           ) : null}
-          <View className="title hr">病人元数据</View>
+          <View className="title hr">病例元数据</View>
           {displayData.includes("patientId") ? (
             <AtInput
               required={this.isRequired("patientId")}
@@ -557,6 +577,7 @@ export default class PatientCreate extends Component {
                 <Picker
                   mode="date"
                   onChange={this.formChange.bind(this, "birthDate")}
+                  start={moment(new Date("1900/01/01")).format("YYYY-MM-DD")}
                 >
                   <AtList hasBorder={false}>
                     {this.isPlaceholder(birthDate)}
@@ -732,7 +753,7 @@ export default class PatientCreate extends Component {
                 <div>
                   <input
                     onClick={this.showPicker.bind(this, "visible2")}
-                    value={linkmanRelationCode}
+                    value={linkmanRegion}
                     placeholder="请选择联系人居住地"
                     readOnly
                     className="weui-input"
@@ -742,7 +763,7 @@ export default class PatientCreate extends Component {
                     visible={visible2}
                     onClose={this.hidePicker.bind(this, "visible2")}
                     dataSource={district}
-                    onChange={this.onChange.bind(this, "linkmanRelationCode")}
+                    onChange={this.onChange.bind(this, "linkmanRegion")}
                   />
                 </div>
                 <IconFont name="icon1" size={30}></IconFont>
@@ -762,7 +783,15 @@ export default class PatientCreate extends Component {
           ) : null}
           {displayData.includes("linkmanRelationName") ? (
             <View className="at-input flex-wrap">
-              <Text className="at-input__title">联系人关系</Text>
+              <Text
+                className={`at-input__title ${
+                  this.isRequired("marriageStatus")
+                    ? "at-input__title--required"
+                    : ""
+                }`}
+              >
+                联系人关系
+              </Text>
               <View className="gender">
                 <Picker
                   mode="selector"
@@ -777,6 +806,17 @@ export default class PatientCreate extends Component {
                 <IconFont name="icon1" size={30}></IconFont>
               </View>
             </View>
+          ) : null}
+          {displayData.includes("idCardNumber") ? (
+            <AtInput
+              required={this.isRequired("idCardNumber")}
+              name="value"
+              title="身份证号"
+              type="text"
+              placeholder="请输入身份证号"
+              value={idCardNumber}
+              onChange={this.formChange.bind(this, "idCardNumber")}
+            />
           ) : null}
           <View className="action">
             <AtButton

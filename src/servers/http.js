@@ -1,5 +1,5 @@
 import Taro from "@tarojs/taro";
-import getBaseUrl from "./baseUrl";
+// import getBaseUrl from "./baseUrl";
 import interceptors, { interceptorsResponse } from "./interceptors";
 import cookie from "react-cookies";
 import { clearDeep } from "./utils";
@@ -9,7 +9,7 @@ interceptors.forEach(interceptorItem => Taro.addInterceptor(interceptorItem));
 class httpRequest {
   baseOptions(params, method = "GET") {
     const { url, data, responseType } = params;
-    const BASE_URL = getBaseUrl(url);
+    // const BASE_URL = getBaseUrl(url);
     let contentType = params.contentType || "application/json";
     let apiMatch = /clever-research|clever-oauth/.test(url);
     let apiRouter = cookie.load("_sessionId")
@@ -17,7 +17,7 @@ class httpRequest {
       : "clever-oauth";
     clearDeep(data);
     let option = {
-      url: BASE_URL + `/api/${apiMatch ? "" : apiRouter}${url}`,
+      url: window.serverConfig.baseurl + `/${apiMatch ? "" : apiRouter}${url}`,
       data,
       method,
       header: {

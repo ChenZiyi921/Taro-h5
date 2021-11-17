@@ -1,4 +1,4 @@
-import { Component } from "react";
+import React, { Component } from "react";
 import { connect } from "react-redux";
 import Taro, { eventCenter, getCurrentInstance } from "@tarojs/taro";
 import { View, Text } from "@tarojs/components";
@@ -10,6 +10,8 @@ import {
   setCurrentFormStatus,
   setCurrentFormList
 } from "@/actions/patientCase";
+import { setItemData } from "@/actions/formItemData";
+import { setFormsData } from "@/actions/formsData";
 import {
   insertForm,
   getCaseEventList,
@@ -21,17 +23,21 @@ import {
   patchFormDataComplete,
   getFormStatus,
   refreshDateValidate,
-  refreshDateBind
+  refreshDateBind,
+  formValidate
 } from "@/servers/servers";
 import FormControl from "./form";
 import NoData from "@/components/NoData";
+import { questionRule } from "./rule";
 import "./index.styl";
 
 @connect(
-  ({ library, patientCase, userInfo }) => ({
+  ({ library, patientCase, userInfo, formItemData, formsData }) => ({
     library,
     patientCase,
-    userInfo
+    userInfo,
+    formItemData,
+    formsData
   }),
   dispatch => ({
     setAllEvent(item) {
@@ -48,6 +54,12 @@ import "./index.styl";
     },
     setCurrentFormList(data, formInstanceList) {
       dispatch(setCurrentFormList(data, formInstanceList));
+    },
+    setItemData(data) {
+      dispatch(setItemData(data));
+    },
+    setFormsData(data) {
+      dispatch(setFormsData(data));
     }
   })
 )
@@ -60,16 +72,30 @@ export default class OrderInfo extends Component {
     current3: 0,
     formList: [],
     formData: [],
-    formItemData: [],
-    formId: ""
+    formId: "",
+    formIndex: 0,
+    needToFill: true
   };
 
   componentDidMount() {
-    const { displayEvent } = this.props.patientCase;
+    const { displayEvent, currentCase } = this.props.patientCase;
+    const { formList } = currentCase;
     if (displayEvent.length) {
       this.getFormTreeData(0);
       this.props.setCurrentEvent(displayEvent[0]);
     }
+    if (formList?.length) {
+      this.getFormTreeData(0);
+      this.props.setAllEvent([
+        {
+          eventInstanceList: [{ projectEventFormList: formList }]
+        }
+      ]);
+      this.props.setCurrentEvent({
+        eventInstanceList: [{ projectEventFormList: formList }]
+      });
+    }
+    this.containerRef = React.createRef();
   }
 
   componentWillUnmount() {}
@@ -127,85 +153,110 @@ export default class OrderInfo extends Component {
           message,
           type: "success"
         });
+        setTimeout(() => {
+          Taro.redirectTo({
+            url: "/pages/patientCase/index"
+          });
+        }, 2000);
       })
       .catch(err => {});
   };
 
   getFormTreeData = value => {
-    const { displayEvent } = this.props.patientCase;
+    const { displayEvent, currentCase } = this.props.patientCase;
+    const { formList: resFormList } = currentCase;
     this.setState(
       {
         formList:
+          resFormList ||
           displayEvent[value || 0].eventInstanceList[0]?.projectEventFormList ||
           []
       },
       () => {
         const { formList } = this.state;
+        const { library } = this.props;
+        const { projectId } = library;
         this.getProjectFormTree(formList[0]);
       }
     );
   };
 
   getProjectFormTree = currentForm => {
-    const { library } = this.props;
-    const { projectId } = library;
-    const { formId } = currentForm;
-    const { projectCaseFormId } = currentForm.formInstanceList[0];
-    Taro.showLoading({
-      title: "加载中",
-      mask: true
-    });
-    this.setState({ formId });
-    this.props.setCurrentForm(currentForm);
-    this.getFormStatus(projectCaseFormId);
-    getProjectFormTree({ projectId, formId })
-      .then(res => {
-        const { data } = res.data;
-        this.setState({ formData: data }, () => {
-          const { current3 } = this.state;
-          const { formDataId } = currentForm.formInstanceList[current3];
-          if (formDataId) {
-            this.getFormData(projectId, formDataId);
-          } else {
-            this.setState({
-              formItemData: []
-            });
-          }
+    this.formValidate(currentForm).then(needToFill => {
+      this.setState({ needToFill });
+      if (needToFill) {
+        const { library } = this.props;
+        const { projectId } = library;
+        const { formId } = currentForm;
+        const { projectCaseFormId } = currentForm.formInstanceList[0];
+        Taro.showLoading({
+          title: "加载中",
+          mask: true
         });
-        Taro.hideLoading();
-      })
-      .catch(err => {});
+        this.setState({ formId });
+        this.props.setCurrentForm(currentForm);
+        this.getFormStatus(projectCaseFormId);
+        getProjectFormTree({ projectId, formId })
+          .then(res => {
+            const { data } = res.data;
+            this.setState({ formData: data }, () => {
+              const { current3 } = this.state;
+              const { formDataId } = currentForm.formInstanceList[current3];
+              if (formDataId) {
+                this.getFormData(projectId, formDataId);
+              } else {
+                this.props.setItemData({});
+              }
+            });
+            Taro.hideLoading();
+          })
+          .catch(err => {});
+      }
+    });
   };
 
   getFormData = (projectId, formDataId) => {
-    getFormData({ projectId, formDataId })
-      .then(res => {
-        this.setState({
-          formItemData: res.data.data.data
-        });
-      })
-      .catch(err => {});
+    if (formDataId) {
+      const { patientCase } = this.props;
+      const { currentForm } = patientCase;
+      const { formId } = currentForm;
+      getFormData({ projectId, formDataId })
+        .then(res => {
+          this.props.setItemData(res.data.data.data);
+          this.props.setFormsData({ [formId]: res.data.data.data });
+        })
+        .catch(err => {});
+    } else {
+      this.props.setItemData({});
+    }
   };
 
   /**
    *
-   * @param {*} identifier
+   * @param {*} item
    * @param {*} val  类型为 object，array，string
    */
-  setFormItemData = (identifier, val) => {
-    console.log(identifier, val);
+  setFormItemData = (item, val, type) => {
+    const { identifier } = item;
     const { label, value } = val;
-    this.setState(
-      state => ({
-        formItemData: {
-          ...state.formItemData,
-          [identifier]: label || value || val
-        }
-      }),
-      () => {
-        console.log(this.state.formItemData);
-      }
-    );
+    const { formItemData } = this.props;
+    if (type === "image") {
+      this.props.setItemData({
+        ...formItemData,
+        [identifier]: formItemData[identifier]?.length
+          ? formItemData[identifier].concat(val)
+          : [val]
+      });
+    } else {
+      let setData = v => {
+        this.props.setItemData({
+          ...formItemData,
+          [identifier]: v
+        });
+        questionRule(item);
+      };
+      setData(label || value || val);
+    }
   };
 
   eventTabsClick = value => {
@@ -214,26 +265,54 @@ export default class OrderInfo extends Component {
     this.setState({
       current: value,
       current2: 0,
-      current3: 0
+      current3: 0,
+      formIndex: 0
     });
+    this.props.setItemData({});
     this.getFormTreeData(value);
   };
 
   formTabsClick = value => {
     const { formList } = this.state;
-    this.setState({
-      current2: value,
-      current3: 0
-    });
-    this.getProjectFormTree(formList[value]);
+    this.props.setItemData({});
+    this.setState(
+      {
+        current2: value,
+        current3: 0,
+        formIndex: value
+      },
+      () => {
+        this.getProjectFormTree(formList[value]);
+      }
+    );
   };
 
   childFormTabsClick = value => {
     const { formList, current2 } = this.state;
     this.setState({
-      current3: value
+      current3: value,
+      formIndex: value
     });
+    this.props.setItemData({});
     this.getProjectFormTree(formList[current2]);
+  };
+
+  formValidate = currentForm => {
+    return new Promise((resolve, reject) => {
+      const { currentCase } = this.props.patientCase;
+      const { projectCaseId } = currentCase;
+      formValidate({
+        projectCaseId,
+        currentForm
+      })
+        .then(({ data: { data, code } }) => {
+          if (code === "OK") {
+            resolve(data);
+          }
+          reject(false);
+        })
+        .catch(err => {});
+    });
   };
 
   onDateChange = e => {
@@ -243,11 +322,11 @@ export default class OrderInfo extends Component {
   };
 
   saveFormData = saveType => {
-    const { library, userInfo, patientCase } = this.props;
+    const { library, userInfo, patientCase, formItemData } = this.props;
     const { projectId, scheduled } = library;
     const { userId } = userInfo;
-    const { formItemData, formList } = this.state;
-    const { projectCaseFormId } = formList[0].formInstanceList[0];
+    const { formList, formIndex } = this.state;
+    const { projectCaseFormId } = formList[formIndex].formInstanceList[0];
 
     const {
       currentEvent: { eventInstanceList },
@@ -293,6 +372,7 @@ export default class OrderInfo extends Component {
         formId
       };
     }
+
     saveType(params)
       .then(({ data: { data, code, message } }) => {
         this.getFormStatus(projectCaseFormId);
@@ -327,6 +407,7 @@ export default class OrderInfo extends Component {
 
   requiredItem = data => {
     let requiredList = {};
+    let requiredName = {};
     let requiredComputed = data => {
       for (let i = 0; i < data.length; i++) {
         if (
@@ -334,6 +415,7 @@ export default class OrderInfo extends Component {
           !data[i]?.ruleList[0]?.dependControlIdentifier
         ) {
           requiredList[data[i].identifier] = true;
+          requiredName[data[i].identifier] = data[i].nameZh;
         }
         if (
           data[i].children &&
@@ -342,17 +424,24 @@ export default class OrderInfo extends Component {
           requiredComputed(data[i].children);
         }
       }
-      return requiredList;
+      return { requiredList, requiredName };
     };
     return requiredComputed(data);
   };
 
   requiredComplete = () => {
-    const { formData, formItemData } = this.state;
-    let requiredList = this.requiredItem(formData);
+    const { formItemData } = this.props;
+    const { formData } = this.state;
+    const { requiredList, requiredName } = this.requiredItem(formData);
     for (const key in requiredList) {
-      if (formItemData[key] !== "") {
+      if (formItemData[key] !== "" && formItemData[key] !== undefined) {
         requiredList[key] = false;
+      } else {
+        Taro.atMessage({
+          message: `${requiredName[key]}是必填项`,
+          type: "error"
+        });
+        break;
       }
     }
     return Object.values(requiredList).includes(true);
@@ -365,29 +454,31 @@ export default class OrderInfo extends Component {
       if (this.requiredComplete()) {
         this.saveFormData(patchFormDataEntryIncomplete);
       } else {
-        Taro.showModal({
-          title: "是否将该表单标记为已完成?",
-          cancelText: "取消",
-          confirmText: "确认",
-          confirmColor: "#09f",
-          content: "系统检测到该表单所有必填项都已填写",
-          showCancel: true,
-          success: res => {
-            if (res.confirm) {
-              this.handleConfirm();
+        if (!this.requiredComplete()) {
+          Taro.showModal({
+            title: "是否将该表单标记为已完成?",
+            cancelText: "取消",
+            confirmText: "确认",
+            confirmColor: "#09f",
+            content: "系统检测到该表单所有必填项都已填写",
+            showCancel: true,
+            success: res => {
+              if (res.confirm) {
+                this.saveFormData(patchFormDataEntryComplete);
+              }
             }
-          }
-        });
+          });
+        }
       }
     } else if (formEntryStatusCode === "COMPLETE") {
-      this.saveFormData(patchFormDataComplete);
+      if (!this.requiredComplete()) {
+        this.saveFormData(patchFormDataComplete);
+      }
     } else {
-      this.saveFormData(patchFormDataIncomplete);
+      if (!this.requiredComplete()) {
+        this.saveFormData(patchFormDataIncomplete);
+      }
     }
-  };
-
-  handleConfirm = () => {
-    this.saveFormData(patchFormDataEntryComplete);
   };
 
   refreshConfirm = () => {
@@ -395,31 +486,24 @@ export default class OrderInfo extends Component {
   };
 
   onReset = () => {
-    const { formItemData } = this.state;
-    let reset = formItemData;
-    for (const key in reset) {
-      reset[key] = "";
+    const { formItemData } = this.props;
+    for (const key in formItemData) {
+      formItemData[key] = "";
     }
-    this.setState(
-      {
-        formItemData: {
-          ...formItemData,
-          ...reset
-        }
-      },
-      () => {
-        console.log(this.state.formItemData);
-      }
-    );
+    this.props.setItemData({
+      ...formItemData
+    });
   };
 
   getFormStatus = projectCaseFormId => {
     const { library } = this.props;
     const { projectId } = library;
-    getFormStatus({ projectCaseFormId }).then(({ data: { data, code } }) => {
-      this.props.setCurrentFormStatus(data);
-      this.getFormData(projectId, data.formDataId);
-    });
+    getFormStatus({ projectCaseFormId })
+      .then(({ data: { data, code } }) => {
+        this.props.setCurrentFormStatus(data);
+        this.getFormData(projectId, data.formDataId);
+      })
+      .catch(err => {});
   };
 
   refreshDateValidate = () => {
@@ -431,9 +515,11 @@ export default class OrderInfo extends Component {
       refreshDateValidate({
         projectCaseFormId,
         projectId
-      }).then(({ data: { data } }) => {
-        resolve(data);
-      });
+      })
+        .then(({ data: { data } }) => {
+          resolve(data);
+        })
+        .catch(err => {});
     });
   };
 
@@ -447,23 +533,53 @@ export default class OrderInfo extends Component {
       projectCaseFormId,
       projectId,
       userId
-    }).then(({ data: { data, code } }) => {
-      this.props.setAllEvent(data);
-    });
+    })
+      .then(({ data: { data, code } }) => {
+        this.props.setAllEvent(data);
+      })
+      .catch(err => {});
+  };
+
+  renderForm = () => {
+    const { disabled } = this.$instance.router.params;
+    const { formData, needToFill } = this.state;
+    const { formItemData } = this.props;
+    return (
+      <View>
+        {needToFill ? (
+          <View>
+            {formData.length ? (
+              <FormControl
+                formData={formData}
+                formItemData={formItemData}
+                setFormItemData={this.setFormItemData}
+                disabled={disabled}
+                requiredItem={this.requiredItem}
+                ref={this.containerRef}
+              />
+            ) : null}
+          </View>
+        ) : (
+          <NoData
+            props={{
+              iconName: "luru",
+              text: "该表单不需要填写！",
+              height: "400px",
+              size: 200,
+              color: "#eee",
+              textStyle: { marginTop: "20px" }
+            }}
+          />
+        )}
+      </View>
+    );
   };
 
   render() {
     const { disabled } = this.$instance.router.params;
     const { displayEvent, currentForm } = this.props.patientCase;
     const { repeatable } = currentForm;
-    const {
-      current,
-      current2,
-      current3,
-      formList,
-      formData,
-      formItemData
-    } = this.state;
+    const { current, current2, current3, formList } = this.state;
     let eventListTitle = displayEvent.length
       ? displayEvent.map(item => {
           return {
@@ -488,7 +604,7 @@ export default class OrderInfo extends Component {
         : [];
     return (
       <View>
-        {displayEvent.length ? (
+        {displayEvent.length || formList.length ? (
           <View className="chen-wrap order-info">
             <AtMessage />
             {!eval(disabled) ? (
@@ -522,76 +638,57 @@ export default class OrderInfo extends Component {
                 </AtButton>
               </View>
             ) : null}
-            <AtTabs
-              scroll
-              current={current}
-              tabList={eventListTitle}
-              onClick={this.eventTabsClick.bind(this)}
-            >
-              {displayEvent.map((item, index) => {
-                return (
-                  <AtTabsPane current={current} index={index} key={index}>
-                    <AtTabs
-                      scroll
-                      current={current2}
-                      tabList={formListTitle}
-                      onClick={this.formTabsClick.bind(this)}
-                    >
-                      {formList.length
-                        ? formList.map((current, i) => {
-                            return (
-                              <AtTabsPane
-                                current={current2}
-                                index={i}
-                                key={i}
-                              ></AtTabsPane>
-                            );
-                          })
-                        : null}
-                    </AtTabs>
-                  </AtTabsPane>
-                );
-              })}
-            </AtTabs>
-
-            {formData.length ? (
-              <View>
-                {currentForm.formInstanceList.length > 1 ? (
-                  <AtTabs
-                    scroll
-                    current={current3}
-                    tabList={childFormListTitle}
-                    onClick={this.childFormTabsClick.bind(this)}
-                  >
-                    {currentForm.formInstanceList.map((item, index) => {
-                      return (
-                        <AtTabsPane
-                          current={current3}
-                          index={index}
-                          key={index}
-                        >
-                          <FormControl
-                            formData={formData}
-                            formItemData={formItemData}
-                            setFormItemData={this.setFormItemData}
-                            disabled={disabled}
-                            requiredItem={this.requiredItem}
-                          />
-                        </AtTabsPane>
-                      );
-                    })}
-                  </AtTabs>
-                ) : (
-                  <FormControl
-                    formData={formData}
-                    formItemData={formItemData}
-                    setFormItemData={this.setFormItemData}
-                    disabled={disabled}
-                    requiredItem={this.requiredItem}
-                  />
-                )}
-              </View>
+            {displayEvent.length ? (
+              <AtTabs
+                scroll
+                current={current}
+                tabList={eventListTitle}
+                onClick={this.eventTabsClick.bind(this)}
+              >
+                {displayEvent.map((item, index) => {
+                  return (
+                    <AtTabsPane current={current} index={index} key={index}>
+                      <AtTabs
+                        scroll
+                        current={current2}
+                        tabList={formListTitle}
+                        onClick={this.formTabsClick.bind(this)}
+                      >
+                        {formList.length
+                          ? formList.map((current, i) => {
+                              return (
+                                <AtTabsPane
+                                  current={current2}
+                                  index={i}
+                                  key={i}
+                                ></AtTabsPane>
+                              );
+                            })
+                          : null}
+                      </AtTabs>
+                    </AtTabsPane>
+                  );
+                })}
+              </AtTabs>
             ) : null}
+            {currentForm.formInstanceList.length > 1 ? (
+              <AtTabs
+                scroll
+                current={current3}
+                tabList={childFormListTitle}
+                onClick={this.childFormTabsClick.bind(this)}
+              >
+                {currentForm.formInstanceList.map((item, index) => {
+                  return (
+                    <AtTabsPane current={current3} index={index} key={index}>
+                      {this.renderForm()}
+                    </AtTabsPane>
+                  );
+                })}
+              </AtTabs>
+            ) : (
+              this.renderForm()
+            )}
           </View>
         ) : (
           <NoData

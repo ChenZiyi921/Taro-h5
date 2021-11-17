@@ -15,12 +15,19 @@ export default class NoData extends Component {
 
   render() {
     const { props } = this.props;
-    const { height, iconName, text } = props;
+    const { height, iconName, text, size, textStyle, color } = props;
     return (
       <View className="no-data" style={{ height }}>
         <View className="content">
-          <IconFont name={iconName} size={400}></IconFont>
-          <Text className="text">{text}</Text>
+          <IconFont
+            name={iconName}
+            size={size || 400}
+            color={color}
+            style={{ margin: "auto" }}
+          ></IconFont>
+          <Text className="text" style={textStyle || {}}>
+            {text}
+          </Text>
         </View>
       </View>
     );

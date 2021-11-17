@@ -1,6 +1,13 @@
 import request from "./http";
 
-export const imageHost = "http://172.16.20.53:8084/";
+let imageHost = "http://research.genecast.com.cn/";
+let imageHost2 = "https://gateway.genecast.com.cn/clever-research/";
+let imagePreviewHost =
+  "https://gateway.genecast.com.cn/clever-research/project/case/form/file/downLoad?filePath=";
+
+if (process.env.NODE_ENV === "development") {
+}
+export { imageHost, imageHost2, imagePreviewHost };
 
 /**
  * @description: 验证老密码
@@ -8,7 +15,7 @@ export const imageHost = "http://172.16.20.53:8084/";
  * @return {*}
  */
 export const checkOldPassword = params => {
-  return request.post(`/clever-oauth/checkOldPassword`, params);
+  return request.post(`clever-oauth/checkOldPassword`, params);
 };
 
 /**
@@ -17,7 +24,7 @@ export const checkOldPassword = params => {
  * @return {*}
  */
 export const resetPassword = params => {
-  return request.post(`/clever-oauth/resetPassword`, params);
+  return request.post(`clever-oauth/resetPassword`, params);
 };
 
 /**
@@ -283,8 +290,9 @@ export const getDistributionAge = params => {
  * @return {*}
  */
 export const getDistributionCenterAmount = params => {
-  return request.get(
-    `/project/case/distribution/center/amount/${params.projectId}`
+  return request.post(
+    `/project/case/distribution/center/amount/${params.projectId}`,
+    []
   );
 };
 
@@ -320,9 +328,7 @@ export const getCaseById = params => {
  * @param {*}
  * @return {*}
  */
-export const uploadCaseFormFile = params => {
-  return request.post(`/project/case/form/file/upload`, params);
-};
+export const uploadFileUrl = `/api/clever-research/project/case/form/file/upload`;
 
 /**
  * @description: 获取当前用户的全部课题
@@ -558,5 +564,28 @@ export const refreshDateValidate = params => {
 export const refreshDateBind = params => {
   return request.post(
     `/project/case/event/refresh?projectCaseFormId=${params.projectCaseFormId}&projectId=${params.projectId}&userId=${params.userId}`
+  );
+};
+
+/**
+ * @description: 检验事件表单规则，判断表单是否需要填写
+ * @param {*}
+ * @return {*}
+ */
+export const formValidate = params => {
+  return request.post(
+    `/project/event/form/rules/validate/${params.projectCaseId}`,
+    params.currentForm
+  );
+};
+
+/**
+ * @description: 跨表单控制控件隐藏显示
+ * @param {*}
+ * @return {*}
+ */
+export const queryFormItemDisplay = params => {
+  return request.post(
+    `/project/case/cross/form/logic/rule?projectId=${params.projectId}&projectCaseId=${params.projectCaseId}`
   );
 };

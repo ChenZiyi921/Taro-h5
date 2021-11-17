@@ -115,6 +115,9 @@ export const chenterOptions = {
     text: "分中心病例收集数",
     left: "center"
   },
+  tooltip: {
+    trigger: "item"
+  },
   dataset: [
     {
       dimensions: ["name", "value"],

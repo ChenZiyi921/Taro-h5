@@ -28,7 +28,7 @@ import "./index.styl";
 )
 export default class PatientCase extends Component {
   state = {
-    patientName: "",
+    patientName: undefined,
     selector: [],
     selectorChecked: { statusId: undefined, statusName: "全部" },
     caseTotal: 0,
@@ -39,6 +39,13 @@ export default class PatientCase extends Component {
   };
 
   componentDidMount() {
+    const { library } = this.props;
+    const { projectId } = library;
+    this.getDictionaryStatusListCase(projectId);
+    this.queryAllProjectCases("all");
+  }
+
+  componentDidShow() {
     const { library } = this.props;
     const { projectId } = library;
     this.getDictionaryStatusListCase(projectId);
@@ -90,7 +97,7 @@ export default class PatientCase extends Component {
 
   handleChange = (input, value) => {
     this.setState({
-      [input]: value
+      [input]: value || undefined
     });
   };
 
@@ -137,7 +144,8 @@ export default class PatientCase extends Component {
       total,
       caseTotal
     } = this.state;
-    const { statusCode } = this.props.library;
+    const { statusCode: libraryStatusCode } = this.props.library;
+    console.log(libraryStatusCode);
     return (
       <View className="patient-case">
         <View className={`at-row at-row--wrap ${caseTotal ? "" : "row-wrap"}`}>
@@ -185,7 +193,7 @@ export default class PatientCase extends Component {
               size="small"
               type="primary"
               onClick={this.jumpPatientCreate}
-              disabled={statusCode !== "PRODUCTION"}
+              disabled={libraryStatusCode !== "PRODUCTION"}
             >
               手动入组
             </AtButton>
@@ -197,20 +205,20 @@ export default class PatientCase extends Component {
               const { statusName, statusCode } = item.caseStatus;
               return (
                 <View className="list" key={index}>
-                  <View className="item">
-                    <Text>入组编号：</Text>
-                    <Text>{item.joinedId}</Text>
+                  <View className="item ellipsis">
+                    入组编号：{item.joinedId}
                   </View>
-                  <View className="item">
-                    <Text>姓名：</Text>
-                    <Text>{item.caseMetadataVO.patientName}</Text>
+                  <View className="item ellipsis">
+                    姓名：{item.caseMetadataVO.patientName}
                   </View>
                   <View className="item">
                     <Text>病例状态：</Text>
                     <Text>{statusName}</Text>
                   </View>
-                  {statusCode === "IN_COLLECTION" ||
-                  statusCode === "UNSTART" ? (
+                  {libraryStatusCode === "PRODUCTION" &&
+                  !item.isLock &&
+                  (statusCode === "IN_COLLECTION" ||
+                    statusCode === "UNSTART") ? (
                     <View
                       className="item"
                       onClick={this.jumpOrderInfo.bind(this, item, {
@@ -225,7 +233,8 @@ export default class PatientCase extends Component {
                       />
                     </View>
                   ) : null}
-                  {["COMPLETE", "AUDIT_PASS", "AUDITING"].includes(
+                  {item.isLock ||
+                  ["COMPLETE", "AUDIT_PASS", "AUDITING"].includes(
                     statusCode
                   ) ? (
                     <View

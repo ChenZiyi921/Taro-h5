@@ -9,4 +9,13 @@ modulesFiles.keys().forEach(name => {
   }
 });
 
-export default combineReducers(fileNames);
+const appReducer = combineReducers(fileNames);
+
+const rootReducer = (state, action) => {
+  if (action.type === "RESET_DATA") {
+    state = undefined;
+  }
+  return appReducer(state, action);
+};
+
+export default rootReducer;

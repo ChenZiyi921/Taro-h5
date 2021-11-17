@@ -1,11 +1,11 @@
 const INITIAL_STATE = {};
 
-export default function userInfo(state = INITIAL_STATE, action) {
-  switch (action.type) {
+export default function userInfo(state = INITIAL_STATE, { type, payload }) {
+  switch (type) {
     case "SAVEUSER":
       return {
         ...state,
-        ...action.payload
+        ...payload
       };
     default:
       return state;

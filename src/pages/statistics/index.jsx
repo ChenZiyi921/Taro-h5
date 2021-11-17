@@ -42,7 +42,7 @@ export default class Index extends Component {
     chenterOptionsReady: false,
     statusOptions,
     statusOptionsReady: false,
-    centerCount: 1
+    centerCount: 0
   };
 
   componentDidMount() {
@@ -55,9 +55,7 @@ export default class Index extends Component {
     this.getDistributionStatus(projectId);
   }
 
-  componentWillUnmount() {
-    clearInterval(this.clearInterval);
-  }
+  componentWillUnmount() {}
 
   componentDidShow() {}
 
@@ -107,6 +105,10 @@ export default class Index extends Component {
           sexOptions,
           sexOptionsReady: Object.keys(data).length ? true : false
         });
+
+        let chartDom = document.getElementById("sexOptions");
+        let myChart = echarts.init(chartDom);
+        myChart.setOption(sexOptions);
       })
       .catch(err => {});
   };
@@ -140,36 +142,52 @@ export default class Index extends Component {
           ageOptions,
           ageOptionsReady: data.length ? true : false
         });
+
+        let chartDom = document.getElementById("ageOptions");
+        let myChart = echarts.init(chartDom);
+        myChart.setOption(ageOptions);
       })
       .catch(err => {});
   };
 
   getDistributionCenterAmount = projectId => {
     getDistributionCenterAmount({ projectId })
-      .then(({ data: { data } }) => {
-        let centerData = data.map(item => {
-          return [item.centerName, item.caseNum];
-        });
-        chenterOptions.dataset[0].source = centerData;
-        this.setState({
-          chenterOptions,
-          chenterOptionsReady: data.length ? true : false
-        });
+      .then(({ data: { data, code } }) => {
+        if (code !== "ERROR" && data.length) {
+          let centerData = data.map(item => {
+            return [item.centerName, item.caseNum];
+          });
+          chenterOptions.dataset[0].source = centerData;
+          this.setState({
+            chenterOptions,
+            chenterOptionsReady: true
+          });
+
+          let chartDom = document.getElementById("chenterOptions");
+          let myChart = echarts.init(chartDom);
+          myChart.setOption(chenterOptions);
+        }
       })
       .catch(err => {});
   };
 
   getDistributionStatus = projectId => {
     getDistributionStatus({ projectId })
-      .then(({ data: { data } }) => {
-        statusOptions.legend.data = data.map(item => {
-          return item.name;
-        });
-        statusOptions.series[0].data = data;
-        this.setState({
-          statusOptions,
-          statusOptionsReady: data.length ? true : false
-        });
+      .then(({ data: { data, code } }) => {
+        if (code !== "ERROR" && data.length) {
+          statusOptions.legend.data = data.map(item => {
+            return item.name;
+          });
+          statusOptions.series[0].data = data;
+          this.setState({
+            statusOptions,
+            statusOptionsReady: true
+          });
+
+          let chartDom = document.getElementById("statusOptions");
+          let myChart = echarts.init(chartDom);
+          myChart.setOption(statusOptions);
+        }
       })
       .catch(err => {});
   };
@@ -249,18 +267,24 @@ export default class Index extends Component {
               }}
             />
           ) : null}
-          <EChart echarts={echarts} option={sexOptionsReady && sexOptions} />
-          <EChart echarts={echarts} option={ageOptionsReady && ageOptions} />
-          {this.state.centerCount ? (
-            <EChart
-              echarts={echarts}
-              option={chenterOptionsReady && chenterOptions}
-            />
+          {sexOptionsReady ? (
+            <div id="sexOptions" className="techarts-canvas"></div>
           ) : null}
-          <EChart
+          {ageOptionsReady ? (
+            <div id="ageOptions" className="techarts-canvas"></div>
+          ) : null}
+          {chenterOptionsReady ? (
+            <div id="chenterOptions" className="techarts-canvas"></div>
+          ) : null}
+          {statusOptionsReady ? (
+            <div id="statusOptions" className="techarts-canvas"></div>
+          ) : null}
+          {/* tcharts tooltip 点击一闪而过，更换echarts */}
+          {/* <EChart echarts={echarts} option={sexOptionsReady && sexOptions} /> */}
+          {/* <EChart
             echarts={echarts}
             option={statusOptionsReady && statusOptions}
-          />
+          /> */}
         </View>
       </View>
     );

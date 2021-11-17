@@ -13,7 +13,7 @@ const config = {
   plugins: [],
   defineConstants: {},
   copy: {
-    patterns: [],
+    patterns: [{ from: "src/serverConfig.js", to: "dist/serverConfig.js" }],
     options: {}
   },
   framework: "react",

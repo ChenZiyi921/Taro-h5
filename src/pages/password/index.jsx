@@ -83,12 +83,13 @@ export default class Password extends Component {
   };
 
   onSubmit = () => {
-    const { password } = this.state;
+    const { password, oldPassword } = this.state;
     let exponent = Taro.getStorageSync("exponent");
     let modulus = Taro.getStorageSync("modulus");
     let publicKey = RSAUtils.getKeyPair(exponent, "", modulus);
     let RSAPassword = RSAUtils.encryptedString(publicKey, password);
-    this.checkOldPassword(RSAPassword).then(res => {
+    let RSAOldPassword = RSAUtils.encryptedString(publicKey, oldPassword);
+    this.checkOldPassword(RSAOldPassword).then(res => {
       if (res) {
         const { password, confirmPassword } = this.state;
         if (password !== confirmPassword) {
@@ -97,9 +98,14 @@ export default class Password extends Component {
             type: "error"
           });
           return;
+        } else {
+          this.resetPassword(RSAPassword);
         }
       } else {
-        this.resetPassword(RSAPassword);
+        Taro.atMessage({
+          message: "旧密码输入有误",
+          type: "error"
+        });
       }
     });
   };

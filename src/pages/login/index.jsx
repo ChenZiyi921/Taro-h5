@@ -2,6 +2,7 @@ import Taro from "@tarojs/taro";
 import { Component } from "react";
 import { connect } from "react-redux";
 import { saveUserInfo } from "@/actions/userInfo";
+import { reset } from "@/actions/reset";
 import { View, Text, Image } from "@tarojs/components";
 import { AtForm, AtInput, AtButton, AtToast, AtMessage } from "taro-ui";
 import {
@@ -18,12 +19,16 @@ import "./index.styl";
 cookie.remove("_sessionId");
 cookie.remove("username");
 @connect(
-  ({ userInfo }) => ({
-    userInfo
+  ({ userInfo, reset }) => ({
+    userInfo,
+    reset
   }),
   dispatch => ({
     saveUserInfo(data) {
       dispatch(saveUserInfo(data));
+    },
+    reset() {
+      dispatch(reset());
     }
   })
 )
@@ -39,6 +44,7 @@ export default class Login extends Component {
 
   componentDidMount() {
     this.getCaptchaImage();
+    this.props.reset();
   }
 
   componentDidShow() {}

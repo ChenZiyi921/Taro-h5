@@ -1,6 +1,6 @@
 {
   "name": "clever-vico-lab",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "private": true,
   "description": "科研管理系统移动端",
   "templateInfo": {
@@ -73,6 +73,7 @@
     "stylelint": "9.3.0",
     "taro-iconfont-cli": "^3.2.1",
     "techarts": "^3.0.4",
+    "vconsole": "^3.9.1",
     "webpack-bundle-analyzer": "^4.4.2"
   }
 }

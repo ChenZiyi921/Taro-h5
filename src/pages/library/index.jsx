@@ -3,7 +3,7 @@ import { Component } from "react";
 import { connect } from "react-redux";
 import { saveLibrary } from "@/actions/library";
 import { View, Text } from "@tarojs/components";
-import { getProjectsList, imageHost } from "@/servers/servers";
+import { getProjectsList, imageHost, imageHost2 } from "@/servers/servers";
 import { libraryStatusBackground } from "@/dictionary/status";
 
 import "./index.styl";
@@ -65,7 +65,17 @@ export default class Library extends Component {
               key={index}
               onClick={this.jumpHomePage.bind(this, item)}
             >
-              <img className="image" src={imageHost + item.logoUrl} alt="" />
+              <img
+                className="image"
+                src={
+                  `${
+                    item.logoUrl.indexOf("project-logo") === -1
+                      ? imageHost
+                      : imageHost2
+                  }` + item.logoUrl
+                }
+                alt=""
+              />
               <Text className="title">{item.projectName}</Text>
               <Text
                 className="state"

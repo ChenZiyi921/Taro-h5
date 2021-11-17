@@ -17,7 +17,7 @@ const patientCase = (state = INITIAL_STATE, { type, payload }) => {
       };
     case "SET_All_EVENT":
       let filterEventList =
-        payload.filter(item => {
+        payload?.filter(item => {
           return item.eventInstanceList.length;
         }) || [];
       return {

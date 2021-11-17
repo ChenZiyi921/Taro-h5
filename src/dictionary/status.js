@@ -6,25 +6,3 @@ export const libraryStatusBackground = {
   INACTIVE: { background: "#e6a23c" },
   DISABLE: { background: "#f56c6c" }
 };
-// export const patientCaseStatusBackground = {
-//   UNSTART: {
-//     statusCode: "UNSTART",
-//     statusName: "未开始"
-//   },
-//   IN_COLLECTION: {
-//     statusCode: "IN_COLLECTION",
-//     statusName: "收集中"
-//   },
-//   COMPLETE: {
-//     statusCode: "COMPLETE",
-//     statusName: "已完成"
-//   },
-//   AUDIT_PASS: {
-//     statusCode: "AUDIT_PASS",
-//     statusName: "已核查"
-//   },
-//   AUDITING: {
-//     statusCode: "AUDITING",
-//     statusName: "核查中"
-//   }
-// };
